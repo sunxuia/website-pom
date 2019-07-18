@@ -24,6 +24,13 @@
         <nexus.url.snapshots>https://nexus.sunxu.net/repository/maven-snapshots/</nexus.url.snapshots>
     </properties>
 
+    <scm>
+        <url>https://github.com/sunxuia/website-pom</url>
+        <connection>scm:git:git@github.com:sunxuia/website-pom.git</connection>
+        <developerConnection>scm:git:git@github.com:sunxuia/website-pom.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
