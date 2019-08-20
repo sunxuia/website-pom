@@ -17,11 +17,6 @@
 
         <spring-cloud.version>Greenwich.RC2</spring-cloud.version>
         <spring-boot.version>2.1.6.RELEASE</spring-boot.version>
-
-        <nexus.id>nexus.sunxu.net</nexus.id>
-        <nexus.url.public>https://nexus.sunxu.net/repository/maven-public/</nexus.url.public>
-        <nexus.url.release>https://nexus.sunxu.net/repository/maven-releases/</nexus.url.release>
-        <nexus.url.snapshots>https://nexus.sunxu.net/repository/maven-snapshots/</nexus.url.snapshots>
     </properties>
 
     <scm>
@@ -146,9 +141,53 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.sonarsource.scanner.maven</groupId>
-                <artifactId>sonar-maven-plugin</artifactId>
-                <version>3.6.0.1398</version>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.8.2</version>
+                <configuration>
+                    <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo
+                    </altDeploymentRepository>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.4</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.github.github</groupId>
+                <artifactId>site-maven-plugin</artifactId>
+                <version>0.12</version>
+                <configuration>
+                    <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
+                    <message>maven artifact ${project.groupId}/${project.name} of ${project.version}</message>
+                    <noJekyll>true</noJekyll>
+                    <repositoryOwner>sunxuia</repositoryOwner>
+                    <repositoryName>maven-repo</repositoryName>
+                    <branch>refs/heads/master</branch>
+                    <merge>true</merge>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>site</goal>
+                        </goals>
+                        <phase>deploy</phase>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -163,8 +202,8 @@
             </snapshots>
         </repository>
         <repository>
-            <id>${nexus.id}</id>
-            <url>${nexus.url.public}</url>
+            <id>sunxuia@github.com</id>
+            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
             <releases>
                 <updatePolicy>never</updatePolicy>
             </releases>
@@ -176,8 +215,8 @@
 
     <pluginRepositories>
         <pluginRepository>
-            <id>${nexus.id}</id>
-            <url>${nexus.url.public}</url>
+            <id>sunxuia@github.com</id>
+            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
             <releases>
                 <updatePolicy>never</updatePolicy>
             </releases>
@@ -189,12 +228,9 @@
 
     <distributionManagement>
         <repository>
-            <id>${nexus.id}</id>
-            <url>${nexus.url.release}</url>
+            <id>internal.repo</id>
+            <name>Temporary Staging Repository</name>
+            <url>file://${project.build.directory}/mvn-repo</url>
         </repository>
-        <snapshotRepository>
-            <id>${nexus.id}</id>
-            <url>${nexus.url.snapshots}</url>
-        </snapshotRepository>
     </distributionManagement>
 </project>
