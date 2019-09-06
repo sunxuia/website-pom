@@ -21,9 +21,6 @@
         <powermock.version>2.0.2</powermock.version>
 
         <!-- plugins properties -->
-        <skip.docker>true</skip.docker>
-        <skip.site>true</skip.site>
-        <skip.springboot>true</skip.springboot>
         <docker.registry.location>docker.io/ntsunxu</docker.registry.location>
         <docker.host>http://localhost:2375</docker.host>
     </properties>
@@ -34,6 +31,48 @@
         <developerConnection>scm:git:git@github.com:sunxuia/website-pom.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
+
+    <repositories>
+        <repository>
+            <id>spring-milestones</id>
+            <name>Spring Milestones</name>
+            <url>https://repo.spring.io/milestone</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>sunxuia@github.com</id>
+            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
+            <releases>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>sunxuia@github.com</id>
+            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
+            <releases>
+                <updatePolicy>never</updatePolicy>
+            </releases>
+            <snapshots>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <distributionManagement>
+        <repository>
+            <id>internal.repo</id>
+            <name>Temporary Staging Repository</name>
+            <url>file://${project.build.directory}/mvn-repo</url>
+        </repository>
+    </distributionManagement>
 
     <dependencyManagement>
         <dependencies>
@@ -162,6 +201,95 @@
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- release jars to maven repo on github -->
+                <plugin>
+                    <groupId>com.github.github</groupId>
+                    <artifactId>site-maven-plugin</artifactId>
+                    <version>0.12</version>
+                    <configuration>
+                        <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
+                        <message>maven artifact ${project.groupId}/${project.name} of ${project.version}</message>
+                        <noJekyll>true</noJekyll>
+                        <repositoryOwner>sunxuia</repositoryOwner>
+                        <repositoryName>maven-repo</repositoryName>
+                        <branch>refs/heads/master</branch>
+                        <merge>true</merge>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>site</goal>
+                            </goals>
+                            <phase>deploy</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- spring boot plugin -->
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- docker deploy -->
+                <plugin>
+                    <groupId>com.spotify</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <version>1.2.0</version>
+                    <configuration>
+                        <imageName>${docker.registry.location}/${project.artifactId}</imageName>
+                        <registryUrl>https://${docker.registry.location}</registryUrl>
+                        <dockerHost>${docker.host}</dockerHost>
+                        <forceTags>true</forceTags>
+                        <baseImage>ntsunxu/openjdk11</baseImage>
+                        <resources>
+                            <resource>
+                                <targetPath>/root</targetPath>
+                                <directory>${project.build.directory}</directory>
+                                <include>${project.build.finalName}.jar</include>
+                            </resource>
+                        </resources>
+                        <workdir>/root</workdir>
+                        <entryPoint>["java","-jar","/root/${project.build.finalName}.jar"]</entryPoint>
+                        <imageTags>
+                            <imageTag>${project.version}</imageTag>
+                            <imageTag>latest</imageTag>
+                        </imageTags>
+                        <retryPushCount>3</retryPushCount>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>tag-image</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>build</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>push-image</id>
+                            <phase>deploy</phase>
+                            <goals>
+                                <goal>push</goal>
+                            </goals>
+                            <configuration>
+                                <imageName>${docker.registry.location}/${project.artifactId}</imageName>
+                                <imageTags>
+                                    <imageTag>${project.version}</imageTag>
+                                </imageTags>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <!-- maven compiler -->
             <plugin>
@@ -185,29 +313,14 @@
             </plugin>
             <!-- maven deploy -->
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>2.8.2</version>
                 <configuration>
-                    <skip>${skip.site}</skip>
-                    <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo
+                    <altDeploymentRepository>
+                        internal.repo::default::file://${project.build.directory}/mvn-repo
                     </altDeploymentRepository>
                 </configuration>
-            </plugin>
-            <!-- spring boot plugin -->
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <configuration>
-                    <skip>${skip.springboot}</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <!-- sonarqube -->
             <plugin>
@@ -229,122 +342,114 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- release jars to maven repo on github -->
-            <plugin>
-                <groupId>com.github.github</groupId>
-                <artifactId>site-maven-plugin</artifactId>
-                <version>0.12</version>
-                <configuration>
-                    <skip>${skip.site}</skip>
-                    <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
-                    <message>maven artifact ${project.groupId}/${project.name} of ${project.version}</message>
-                    <noJekyll>true</noJekyll>
-                    <repositoryOwner>sunxuia</repositoryOwner>
-                    <repositoryName>maven-repo</repositoryName>
-                    <branch>refs/heads/master</branch>
-                    <merge>true</merge>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>site</goal>
-                        </goals>
-                        <phase>deploy</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <!-- docker deploy -->
-            <plugin>
-                <groupId>com.spotify</groupId>
-                <artifactId>docker-maven-plugin</artifactId>
-                <version>1.2.0</version>
-                <configuration>
-                    <skipDocker>${skip.docker}</skipDocker>
-                    <imageName>${docker.registry.location}/${project.artifactId}</imageName>
-                    <registryUrl>https://${docker.registry.location}</registryUrl>
-                    <dockerHost>${docker.host}</dockerHost>
-                    <forceTags>true</forceTags>
-                    <baseImage>ntsunxu/openjdk11</baseImage>
-                    <resources>
-                        <resource>
-                            <targetPath>/root</targetPath>
-                            <directory>${project.build.directory}</directory>
-                            <include>${project.build.finalName}.jar</include>
-                        </resource>
-                    </resources>
-                    <workdir>/root</workdir>
-                    <entryPoint>["java","-jar","/root/${project.build.finalName}.jar"]</entryPoint>
-                    <imageTags>
-                        <imageTag>${project.version}</imageTag>
-                        <imageTag>latest</imageTag>
-                    </imageTags>
-                    <retryPushCount>3</retryPushCount>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>tag-image</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>push-image</id>
-                        <phase>deploy</phase>
-                        <goals>
-                            <goal>push</goal>
-                        </goals>
-                        <configuration>
-                            <imageName>${docker.registry.location}/${project.artifactId}</imageName>
-                            <imageTags>
-                                <imageTag>${project.version}</imageTag>
-                            </imageTags>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>sunxuia@github.com</id>
-            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
-            <releases>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>sunxuia@github.com</id>
-            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
-            <releases>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
-    <distributionManagement>
-        <repository>
-            <id>internal.repo</id>
-            <name>Temporary Staging Repository</name>
-            <url>file://${project.build.directory}/mvn-repo</url>
-        </repository>
-    </distributionManagement>
+    <profiles>
+        <!-- pom will upload to maven repo on github and add dependencies -->
+        <profile>
+            <id>normal</id>
+            <activation>
+                <file>
+                    <exists>profile-normal</exists>
+                </file>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.github</groupId>
+                        <artifactId>site-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- spring cloud service will upload to docker hub and add dependencies  -->
+        <profile>
+            <id>spring-cloud-service</id>
+            <activation>
+                <file>
+                    <exists>profile-spring-cloud-service</exists>
+                </file>
+            </activation>
+            <properties>
+                <maven.deploy.skip>true</maven.deploy.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+            <dependencies>
+                <!-- jars deleted in jdk9 -->
+                <dependency>
+                    <groupId>javax.xml.bind</groupId>
+                    <artifactId>jaxb-api</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.sun.xml.bind</groupId>
+                    <artifactId>jaxb-impl</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.sun.xml.bind</groupId>
+                    <artifactId>jaxb-core</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>javax.activation</groupId>
+                    <artifactId>activation</artifactId>
+                </dependency>
+                <!-- spring -->
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-actuator</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-test</artifactId>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-starter-consul-config</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework.retry</groupId>
+                    <artifactId>spring-retry</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-aop</artifactId>
+                </dependency>
+                <!-- jars -->
+                <dependency>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>com.google.guava</groupId>
+                    <artifactId>guava</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.javatuples</groupId>
+                    <artifactId>javatuples</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>
