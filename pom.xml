@@ -14,9 +14,18 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!-- dependencies version -->
         <spring-cloud.version>Greenwich.RC2</spring-cloud.version>
         <spring-boot.version>2.1.6.RELEASE</spring-boot.version>
         <nosql-unit.version>1.0.0</nosql-unit.version>
+        <powermock.version>2.0.2</powermock.version>
+
+        <!-- plugins properties -->
+        <skip.docker>true</skip.docker>
+        <skip.site>true</skip.site>
+        <skip.springboot>true</skip.springboot>
+        <docker.registry.location>docker.io/ntsunxu</docker.registry.location>
+        <docker.host>http://localhost:2375</docker.host>
     </properties>
 
     <scm>
@@ -66,6 +75,23 @@
                 <version>1.1.1</version>
             </dependency>
 
+            <!-- apache commons -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.9</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>4.4</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>1.7</version>
+            </dependency>
+
             <!-- connector -->
             <dependency>
                 <groupId>mysql</groupId>
@@ -84,8 +110,33 @@
                 <artifactId>nosqlunit-mongodb</artifactId>
                 <version>${nosql-unit.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.dbunit</groupId>
+                <artifactId>dbunit</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-module-junit4</artifactId>
+                <version>${powermock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-api-mockito2</artifactId>
+                <version>${powermock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-module-junit4-rule</artifactId>
+                <version>${powermock.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.powermock</groupId>
+                <artifactId>powermock-classloading-xstream</artifactId>
+                <version>${powermock.version}</version>
+            </dependency>
 
-            <!-- other jars -->
+            <!-- jars -->
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
@@ -102,28 +153,17 @@
                 <artifactId>javatuples</artifactId>
                 <version>1.2</version>
             </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt</artifactId>
+                <version>0.9.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <!-- spring boot plugin -->
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>${spring-boot.version}</version>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>repackage</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
+            <!-- maven compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -133,6 +173,7 @@
                     <target>${java.version}</target>
                 </configuration>
             </plugin>
+            <!-- maven release -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
@@ -142,14 +183,33 @@
                     <autoVersionSubmodules>true</autoVersionSubmodules>
                 </configuration>
             </plugin>
+            <!-- maven deploy -->
             <plugin>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>2.8.2</version>
                 <configuration>
+                    <skip>${skip.site}</skip>
                     <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo
                     </altDeploymentRepository>
                 </configuration>
             </plugin>
+            <!-- spring boot plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <configuration>
+                    <skip>${skip.springboot}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- sonarqube -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -169,11 +229,13 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- release jars to maven repo on github -->
             <plugin>
                 <groupId>com.github.github</groupId>
                 <artifactId>site-maven-plugin</artifactId>
                 <version>0.12</version>
                 <configuration>
+                    <skip>${skip.site}</skip>
                     <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
                     <message>maven artifact ${project.groupId}/${project.name} of ${project.version}</message>
                     <noJekyll>true</noJekyll>
@@ -188,6 +250,56 @@
                             <goal>site</goal>
                         </goals>
                         <phase>deploy</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- docker deploy -->
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>1.2.0</version>
+                <configuration>
+                    <skipDocker>${skip.docker}</skipDocker>
+                    <imageName>${docker.registry.location}/${project.artifactId}</imageName>
+                    <registryUrl>https://${docker.registry.location}</registryUrl>
+                    <dockerHost>${docker.host}</dockerHost>
+                    <forceTags>true</forceTags>
+                    <baseImage>ntsunxu/openjdk11</baseImage>
+                    <resources>
+                        <resource>
+                            <targetPath>/root</targetPath>
+                            <directory>${project.build.directory}</directory>
+                            <include>${project.build.finalName}.jar</include>
+                        </resource>
+                    </resources>
+                    <workdir>/root</workdir>
+                    <entryPoint>["java","-jar","/root/${project.build.finalName}.jar"]</entryPoint>
+                    <imageTags>
+                        <imageTag>${project.version}</imageTag>
+                        <imageTag>latest</imageTag>
+                    </imageTags>
+                    <retryPushCount>3</retryPushCount>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>tag-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>push-image</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>push</goal>
+                        </goals>
+                        <configuration>
+                            <imageName>${docker.registry.location}/${project.artifactId}</imageName>
+                            <imageTags>
+                                <imageTag>${project.version}</imageTag>
+                            </imageTags>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
