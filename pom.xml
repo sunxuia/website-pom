@@ -22,7 +22,7 @@
 
         <!-- plugins properties -->
         <docker.registry.location>docker.io/ntsunxu</docker.registry.location>
-        <docker.host>http://localhost:2375</docker.host>
+        <docker.host>unix:///var/run/docker.sock</docker.host>
     </properties>
 
     <scm>
