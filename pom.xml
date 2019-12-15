@@ -6,7 +6,7 @@
 
     <groupId>net.sunxu.website</groupId>
     <artifactId>website-pom</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
     <name>website-pom</name>
 
     <properties>
@@ -43,7 +43,7 @@
         </repository>
         <repository>
             <id>sunxuia@github.com</id>
-            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
+            <url>https://maven.pkg.github.com/sunxuia/maven-repo</url>
             <releases>
                 <updatePolicy>never</updatePolicy>
             </releases>
@@ -56,7 +56,7 @@
     <pluginRepositories>
         <pluginRepository>
             <id>sunxuia@github.com</id>
-            <url>https://raw.githubusercontent.com/sunxuia/maven-repo/master/</url>
+            <url>https://maven.pkg.github.com/sunxuia/maven-repo</url>
             <releases>
                 <updatePolicy>never</updatePolicy>
             </releases>
@@ -68,9 +68,9 @@
 
     <distributionManagement>
         <repository>
-            <id>internal.repo</id>
-            <name>Temporary Staging Repository</name>
-            <url>file://${project.build.directory}/mvn-repo</url>
+            <id>sunxuia@github.com</id>
+            <name>github package</name>
+            <url>https://maven.pkg.github.com/sunxuia/maven-repo</url>
         </repository>
     </distributionManagement>
 
@@ -218,29 +218,6 @@
     <build>
         <pluginManagement>
             <plugins>
-                <!-- release jars to maven repo on github -->
-                <plugin>
-                    <groupId>com.github.github</groupId>
-                    <artifactId>site-maven-plugin</artifactId>
-                    <version>0.12</version>
-                    <configuration>
-                        <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory>
-                        <message>maven artifact ${project.groupId}/${project.name} of ${project.version}</message>
-                        <noJekyll>true</noJekyll>
-                        <repositoryOwner>sunxuia</repositoryOwner>
-                        <repositoryName>maven-repo</repositoryName>
-                        <branch>refs/heads/master</branch>
-                        <merge>true</merge>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>site</goal>
-                            </goals>
-                            <phase>deploy</phase>
-                        </execution>
-                    </executions>
-                </plugin>
                 <!-- spring boot plugin -->
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
@@ -326,17 +303,6 @@
                     <autoVersionSubmodules>true</autoVersionSubmodules>
                 </configuration>
             </plugin>
-            <!-- maven deploy -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-deploy-plugin</artifactId>
-                <version>2.8.2</version>
-                <configuration>
-                    <altDeploymentRepository>
-                        internal.repo::default::file://${project.build.directory}/mvn-repo
-                    </altDeploymentRepository>
-                </configuration>
-            </plugin>
             <!-- sonarqube -->
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -375,14 +341,6 @@
                     <artifactId>lombok</artifactId>
                 </dependency>
             </dependencies>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.github.github</groupId>
-                        <artifactId>site-maven-plugin</artifactId>
-                    </plugin>
-                </plugins>
-            </build>
         </profile>
         <!-- spring cloud service will upload to docker hub and add dependencies  -->
         <profile>
